@@ -1,5 +1,7 @@
 # Bot Tài Xỉu Discord
 
+> **Lưu ý (Disclaimer):** Dự án này được xây dựng với sự hỗ trợ của AI nên khó tránh khỏi sai sót hoặc lỗi phát sinh trong một số trường hợp. Nếu phát hiện bug hay cần chỉnh sửa thêm, bạn có thể tự điều chỉnh hoặc báo lại để khắc phục.
+
 Bot Tài Xỉu viết bằng TypeScript + `discord.js` v14 + SQLite tích hợp (`node:sqlite`) + `@napi-rs/canvas`, có biểu đồ thống kê 20 phiên, animation lắc bát & mở từng viên xúc xắc, chống race condition bằng SQLite transaction đồng bộ và tự hoàn tiền nếu bot tắt giữa phiên.
 
 ## Yêu cầu môi trường
