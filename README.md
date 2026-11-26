@@ -26,7 +26,6 @@ Bot Tài Xỉu viết bằng TypeScript + `discord.js` v14 + SQLite tích hợp 
    ```env
    DISCORD_TOKEN=dan_token_bot_cua_ban_vao_day
    CLIENT_ID=dan_application_id_cua_ban_vao_day
-   GUILD_ID=dan_id_server_discord_cua_ban_neu_muon_lenh_hien_ngay
    DB_PATH=./data/taixiu.sqlite
    ```
    > **Cảnh báo bảo mật:** Không bao giờ đưa file `.env` hay thư mục `data/` lên GitHub (đã được chặn sẵn trong `.gitignore`).

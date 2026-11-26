@@ -14,10 +14,14 @@ if (!token || !clientId) {
 const rest = new REST().setToken(token);
 const body = commandDefinitions.map((c) => c.toJSON());
 
+await rest.put(Routes.applicationCommands(clientId), { body });
+console.log(`Registered ${body.length} global commands for all servers.`);
+
 if (guildId) {
-  await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body });
-  console.log(`Registered ${body.length} guild commands to ${guildId}.`);
-} else {
-  await rest.put(Routes.applicationCommands(clientId), { body });
-  console.log(`Registered ${body.length} global commands.`);
+  try {
+    await rest.put(Routes.applicationGuildCommands(clientId, guildId), { body: [] });
+    console.log(`Cleared old guild-only commands on ${guildId} to prevent duplicates.`);
+  } catch {
+    // Ignore if the bot is no longer in that guild.
+  }
 }
