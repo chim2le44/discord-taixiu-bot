@@ -1,4 +1,6 @@
 import 'dotenv/config';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Client, Events, GatewayIntentBits, MessageFlags } from 'discord.js';
 import { openDatabase } from './db/database.js';
 import { Repository } from './db/repository.js';
@@ -17,8 +19,10 @@ if (!token) {
   process.exit(1);
 }
 
-const dbPath = process.env.DB_PATH || './data/taixiu.sqlite';
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const dbPath = path.resolve(projectRoot, process.env.DB_PATH || './data/taixiu.sqlite');
 const db = openDatabase(dbPath);
+console.log(`[DB] Using SQLite database at ${dbPath}`);
 const repo = new Repository(db);
 
 const recovery = repo.refundOpenRounds();
@@ -107,7 +111,10 @@ client.on(Events.MessageCreate, async (message) => {
   }
 });
 
+let shuttingDown = false;
 const shutdown = () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
   console.log('Shutting down gracefully...');
   tableManager.stopAll();
   for (const timer of ctx.pendingEditTimers.values()) {
@@ -123,11 +130,19 @@ const shutdown = () => {
   }
   ctx.soloChallenges.clear();
   client.destroy();
+  try {
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+  } catch {
+    // Ignore checkpoint errors if DB is already closing.
+  }
   db.close();
   process.exit(0);
 };
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+if (process.platform === 'win32') {
+  process.on('SIGBREAK', shutdown);
+}
 
 await client.login(token);

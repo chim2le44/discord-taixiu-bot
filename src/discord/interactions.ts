@@ -341,7 +341,7 @@ export function createTableManager(
 
       const note =
         reason === 'EMPTY'
-          ? '🛑 Bàn Tài Xỉu đã tạm nghỉ do 2 phiên liên tiếp không có người cược. Gõ `.tx` để mở lại!'
+          ? '🛑 Bàn Tài Xỉu đã tạm nghỉ do 2 phiên liên tiếp không có người cược. Gõ `.tx` (hoặc `.taixiu`) để mở lại!'
           : '🛑 Bàn Tài Xỉu đã đóng.';
 
       const channel = await ctx.client.channels.fetch(channelId);

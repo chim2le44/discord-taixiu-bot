@@ -29,6 +29,7 @@ export function openDatabase(dbPath: string): DatabaseSync {
   const db = new DatabaseSync(dbPath);
   db.exec(`
     PRAGMA journal_mode = WAL;
+    PRAGMA synchronous = FULL;
     PRAGMA busy_timeout = 5000;
     PRAGMA foreign_keys = ON;
 

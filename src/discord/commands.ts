@@ -31,12 +31,14 @@ import {
 
 export const COMMAND_PREFIX = '.';
 
-/** Slash commands are reserved for server admins only. */
+/** Slash commands: public /hd guide plus admin commands (verified at runtime). */
 export const commandDefinitions = [
+  new SlashCommandBuilder()
+    .setName('hd')
+    .setDescription('Xem hướng dẫn đầy đủ các lệnh của bot Tài Xỉu'),
   new SlashCommandBuilder()
     .setName('admin-kenh')
     .setDescription('Chỉ định kênh được phép mở bàn Tài Xỉu (bỏ trống để mở lại mọi kênh)')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addChannelOption((opt) =>
       opt
         .setName('kenh')
@@ -46,7 +48,6 @@ export const commandDefinitions = [
   new SlashCommandBuilder()
     .setName('admin-xu')
     .setDescription('Cộng hoặc trừ xu của một người chơi trong server')
-    .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
     .addUserOption((opt) =>
       opt.setName('nguoi_choi').setDescription('Người chơi').setRequired(true),
     )
@@ -57,6 +58,54 @@ export const commandDefinitions = [
         .setRequired(true),
     ),
 ];
+
+function hasAdminPermission(interaction: ChatInputCommandInteraction): boolean {
+  if (interaction.guild?.ownerId === interaction.user.id) {
+    return true;
+  }
+  const perms = interaction.memberPermissions;
+  if (!perms) {
+    return false;
+  }
+  return (
+    perms.has(PermissionFlagsBits.Administrator) ||
+    perms.has(PermissionFlagsBits.ManageGuild) ||
+    perms.has(PermissionFlagsBits.ManageChannels) ||
+    perms.has(PermissionFlagsBits.ModerateMembers)
+  );
+}
+
+function buildHelpEmbed(): EmbedBuilder {
+  return new EmbedBuilder()
+    .setColor(0x3b82f6)
+    .setTitle('📖 DANH SÁCH LỆNH TÀI XỈU')
+    .setDescription(
+      [
+        '**🎲 Chơi & Soi cầu**',
+        '• `.tx` *(`.taixiu`)* — Mở bàn Tài Xỉu',
+        '• `.cau` — Biểu đồ thống kê 20 phiên',
+        '',
+        '**💰 Ví xu & Quà**',
+        '• `.tanthu` — Quà tân thủ **50M xu** *(1 lần/server)*',
+        '• `.dd` *(`.daily`)* — Điểm danh nhận **5k xu/ngày**',
+        '• `.ct` *(`.cuutro`)* — Cứu trợ **1.5k xu** khi về 0',
+        '• `.nv` *(`.nhiemvu`)* — Nhiệm vụ nhận xu mỗi ngày',
+        '• `.vi` *(`.profile`)* — Xem ví & Thánh Đen (`.vi @tên`)',
+        '• `.top` — BXH Đại gia, Chuỗi thắng & Thánh Đen',
+        '',
+        '**🤝 Giao lưu**',
+        '• `.ck @tên <xu>` *(`.chuyen`)* — Chuyển xu (VD: `.ck @A 5k`)',
+        '• `.lixi <tổng> <suất>` — Thả lì xì (VD: `.lixi 10k 5`)',
+        '• `.solo @tên <xu>` — Solo 1v1 (VD: `.solo @A 2k`)',
+        '',
+        '**⚡ Đặc biệt**',
+        '• **Giờ Vàng (15%):** Tài/Xỉu & Chẵn/Lẻ **x2.1**, góp Hũ **10%**',
+        '• **Thánh Đen:** Thua 3/5/8 ván → `🤡` / `💀` hoàn 15% / `☠️` hoàn 25%',
+        '',
+        '*Hướng dẫn: `/hd` • Quản trị (Chủ server / Admin / Mod): `/admin-kenh`, `/admin-xu`*',
+      ].join('\n'),
+    );
+}
 
 export async function handleSlashCommand(
   interaction: ChatInputCommandInteraction,
@@ -73,7 +122,21 @@ export async function handleSlashCommand(
   const guildId = interaction.guildId;
 
   switch (interaction.commandName) {
+    case 'hd': {
+      await interaction.reply({
+        embeds: [buildHelpEmbed()],
+      });
+      return;
+    }
+
     case 'admin-kenh': {
+      if (!hasAdminPermission(interaction)) {
+        await interaction.reply({
+          content: '❌ Chỉ Chủ server hoặc Quản trị viên (Admin/Mod) mới được dùng lệnh này.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
       const channel = interaction.options.getChannel('kenh');
       ctx.repo.setAllowedChannel(guildId, channel ? channel.id : null);
       await interaction.reply({
@@ -86,6 +149,13 @@ export async function handleSlashCommand(
     }
 
     case 'admin-xu': {
+      if (!hasAdminPermission(interaction)) {
+        await interaction.reply({
+          content: '❌ Chỉ Chủ server hoặc Quản trị viên (Admin/Mod) mới được dùng lệnh này.',
+          flags: MessageFlags.Ephemeral,
+        });
+        return;
+      }
       const target = interaction.options.getUser('nguoi_choi', true);
       if (target.bot) {
         await interaction.reply({
@@ -172,8 +242,7 @@ export async function handlePrefixCommand(message: Message, ctx: BotContext): Pr
     }
 
     case 'daily':
-    case 'dd':
-    case 'diemdanh': {
+    case 'dd': {
       const res = ctx.repo.claimDaily(guildId, userId);
       if (!res.ok) {
         const unix = res.nextAvailableAtMs ? Math.floor(res.nextAvailableAtMs / 1000) : null;
@@ -229,9 +298,7 @@ export async function handlePrefixCommand(message: Message, ctx: BotContext): Pr
     }
 
     case 'vi':
-    case 'xu':
-    case 'profile':
-    case 'me': {
+    case 'profile': {
       let target = message.author;
       if (args[1]) {
         const mentioned = await resolveMentionUser(message, ctx, args[1]);
@@ -285,8 +352,7 @@ export async function handlePrefixCommand(message: Message, ctx: BotContext): Pr
       return;
     }
 
-    case 'top':
-    case 'bxh': {
+    case 'top': {
       const richest = ctx.repo.getLeaderboard(guildId, 'balance', 10);
       const streaks = ctx.repo.getLeaderboard(guildId, 'streak', 10);
       const unluckiest = ctx.repo.getLeaderboard(guildId, 'lose_streak', 10);
@@ -330,13 +396,12 @@ export async function handlePrefixCommand(message: Message, ctx: BotContext): Pr
       return;
     }
 
-    case 'chuyen':
     case 'ck':
-    case 'pay': {
+    case 'chuyen': {
       const target = await resolveMentionUser(message, ctx, args[1]);
       const rawAmount = args[2];
       if (!target || !rawAmount) {
-        await message.reply('❌ Cách dùng: `.chuyen @tên <số_xu>` (VD: `.chuyen @A 5k`)');
+        await message.reply('❌ Cách dùng: `.ck @tên <số_xu>` (VD: `.ck @A 5k`)');
         return;
       }
       if (target.bot) {
@@ -483,42 +548,6 @@ export async function handlePrefixCommand(message: Message, ctx: BotContext): Pr
         components: [buildSoloChallengeButtons(challengeId, false)],
       });
       challenge.message = sent;
-      return;
-    }
-
-    case 'help':
-    case 'hd':
-    case 'lenh': {
-      const embed = new EmbedBuilder()
-        .setColor(0x3b82f6)
-        .setTitle('📖 DANH SÁCH LỆNH TÀI XỈU')
-        .setDescription(
-          [
-            '**🎲 Bàn chơi & Soi cầu**',
-            '• `.tx` *(hoặc `.taixiu`)* — Mở bàn Tài Xỉu ngay tại kênh',
-            '• `.cau` — Xem biểu đồ thống kê 20 phiên gần nhất',
-            '',
-            '**💰 Ví xu & Thưởng**',
-            '• `.tanthu` — Nhận quà tân thủ **50,000,000 xu** *(1 lần duy nhất)*',
-            '• `.daily` *(hoặc `.dd`)* — Điểm danh nhận 5,000 xu/ngày',
-            '• `.cuutro` *(hoặc `.ct`)* — Nhận 1,500 xu khi số dư về 0',
-            '• `.nv` *(hoặc `.nhiemvu`)* — Xem & nhận thưởng nhiệm vụ ngày',
-            '• `.vi` *(hoặc `.xu`, `.profile`)* — Xem ví & kỷ lục (`.vi @tên`)',
-            '• `.top` *(hoặc `.bxh`)* — Bảng xếp hạng Đại gia, Chuỗi thắng & Thánh Đen',
-            '',
-            '**🤝 Giao lưu**',
-            '• `.chuyen @tên <xu>` *(hoặc `.ck`)* — Chuyển xu (VD: `.chuyen @A 5k`)',
-            '• `.lixi <tổng_xu> <số_suất>` — Thả lì xì (VD: `.lixi 10k 5`)',
-            '• `.solo @tên <xu>` — Thách đấu 1v1 (VD: `.solo @A 2k`)',
-            '',
-            '**⚡ Tính năng đặc biệt**',
-            '• **Phiên Giờ Vàng (15%):** Tài/Xỉu & Chẵn/Lẻ ăn **x2.1**, góp Hũ **10%**',
-            '• **Thánh Đen:** Thua 3 ván gắn 🤡, 5 ván 💀 hoàn **15%**, 8 ván ☠️ hoàn **25%**',
-            '',
-            '*Lệnh quản trị (chỉ Admin): `/admin-kenh`, `/admin-xu`*',
-          ].join('\n'),
-        );
-      await message.reply({ embeds: [embed] });
       return;
     }
 
